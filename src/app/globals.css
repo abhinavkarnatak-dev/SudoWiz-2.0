@@ -1,0 +1,191 @@
+@import "tailwindcss";
+
+/* --------------------------------------------------------------------------
+   Design tokens
+   A single dark "obsidian" surface, amber as the interactive accent (carried
+   over from the original SudoWiz mark), mint for anything the solver produced
+   and rose for rule breaks. Grid lines are drawn as gaps between nested grids
+   rather than borders, which keeps them hairline-crisp at every zoom level.
+   -------------------------------------------------------------------------- */
+@theme {
+  --color-canvas: #08090b;
+  --color-canvas-soft: #0d0f13;
+  --color-panel: #101318;
+  --color-panel-hi: #171b22;
+  --color-panel-peer: #14181f;
+
+  --color-rule-soft: #1b1f26;
+  --color-rule-strong: #2b313a;
+
+  --color-ink: #ece7dd;
+  --color-ink-dim: #8b8f98;
+  --color-ink-faint: #5a5f68;
+
+  --color-accent: #f5a524;
+  --color-accent-dim: #b97a18;
+
+  --color-solved: #5eead4;
+
+  --color-danger: #fb7185;
+
+  --font-display: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", monospace;
+
+  --radius-board: 18px;
+}
+
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+html {
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  /* Two very soft pools of light so flat black never reads as dead space. */
+  background-image:
+    radial-gradient(
+      68rem 38rem at 50% -12%,
+      color-mix(in oklab, var(--color-accent) 11%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      44rem 30rem at 92% 108%,
+      color-mix(in oklab, var(--color-solved) 7%, transparent),
+      transparent 72%
+    );
+  background-attachment: fixed;
+}
+
+button {
+  font-family: inherit;
+  /* Kills the tap delay and double-tap zoom on the board and number pad. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/*
+ * Shown only on touch devices. Keyed on pointer capability rather than a
+ * viewport width, because "has a camera worth opening" is not a screen size:
+ * a narrow desktop window is still a mouse.
+ */
+.touch-only {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .touch-only {
+    display: inline-flex;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Animations
+   -------------------------------------------------------------------------- */
+@keyframes cell-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.55);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0) scale(1.12);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes digit-pop {
+  from {
+    transform: scale(0.7);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes cell-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  50% {
+    transform: translateX(2px);
+  }
+  75% {
+    transform: translateX(-1px);
+  }
+}
+
+@keyframes board-flash {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-solved) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 20px transparent;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-reveal {
+  animation: cell-reveal 380ms cubic-bezier(0.22, 1.2, 0.36, 1) backwards;
+}
+
+.animate-pop {
+  animation: digit-pop 140ms ease-out;
+}
+
+.animate-nudge {
+  animation: cell-nudge 220ms ease-in-out;
+}
+
+.animate-flash {
+  animation: board-flash 700ms ease-out;
+}
+
+.animate-rise {
+  animation: rise-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The static end state is the reduced state, so nothing jumps when motion is off. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-reveal,
+  .animate-pop,
+  .animate-nudge,
+  .animate-flash,
+  .animate-rise {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
