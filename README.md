@@ -1,181 +1,216 @@
-# Sudowiz
+# SudoWiz 2.0
 
-A Sudoku solver that runs entirely in the browser. Type a puzzle in, hit Solve,
-and a backtracking search fills the rest in under a millisecond. No accounts, no
-uploads, no server.
+A fast, responsive Sudoku solver built with Next.js, React, and TypeScript.
+Enter a puzzle with the keyboard or touch controls, load a sample, or scan a
+photo. SudoWiz validates the board, solves it in the browser, and reports
+whether the solution is unique.
 
-Rebuild of the original SudoWiz (Vite + JavaScript) on Next.js 16, React 19,
-TypeScript and Tailwind v4.
+This is a ground-up rebuild of the original Vite and JavaScript version of
+SudoWiz.
+
+## Highlights
+
+- Fast backtracking solver with candidate bitmasks and most-constrained-cell
+  ordering
+- Clear handling for invalid, unsolvable, non-unique, and search-limited
+  puzzles
+- Conflict highlighting for rows, columns, and 3-by-3 boxes
+- Photo and screenshot scanning with crop, paste, drag-and-drop, and mobile
+  camera support
+- Sample puzzles, undo history, reset controls, digit counts, solve timing,
+  and an animated solution reveal
+- Keyboard navigation and a touch-friendly number pad
+- Responsive board and controls for phones, tablets, and desktops
+- Pure, typed domain logic covered by Vitest
+
+## Tech stack
+
+- Next.js 16
+- React 19
+- TypeScript 5
+- Tailwind CSS 4
+- Google Gemini for optional photo scanning
+- Vitest 4
 
 ## Getting started
 
+### Prerequisites
+
+- Node.js 20.19 or newer
+- npm
+
+### Install and run
+
 ```bash
+git clone https://github.com/abhinavkarnatak-dev/SudoWiz-2.0.git
+cd SudoWiz-2.0
 npm install
-cp .env.example .env.local   # paste a Gemini API key for photo scanning
-npm run dev                  # http://localhost:3000
+npm run dev
 ```
 
-Solving works with no key. Only the photo scan needs one; without it that button
-returns a clear "not set up" message instead of failing oddly.
+Open [http://localhost:3000](http://localhost:3000). The solver, sample
+puzzles, and manual entry work without any external service or API key.
 
-| Script              | What it does                              |
-| ------------------- | ----------------------------------------- |
-| `npm run dev`       | Dev server                                |
-| `npm run build`     | Production build                          |
-| `npm start`         | Serve the production build                |
-| `npm test`          | Run the solver and validation test suites |
-| `npm run typecheck` | `tsc --noEmit`                            |
-| `npm run lint`      | ESLint                                    |
+### Enable photo scanning
 
-To open it on a phone on the same network:
+Copy the example environment file and add a Gemini API key:
+
+```bash
+cp .env.example .env.local
+```
+
+```dotenv
+GEMINI_API_KEY=your_api_key_here
+```
+
+Create a key in [Google AI Studio](https://aistudio.google.com/apikey), then
+restart the development server. The key is read only by the server-side scan
+route and is never sent to the browser.
+
+## Using SudoWiz
+
+1. Enter a puzzle, choose a sample, or scan an image.
+2. Review the givens. Any duplicate digits are highlighted immediately.
+3. Select **Solve** or press `Enter`.
+4. Use **Keep editing** to remove solver-filled cells while preserving the
+   original givens.
+
+Desktop keyboard controls:
+
+| Keys | Action |
+| --- | --- |
+| `1` to `9` | Enter or toggle a digit |
+| `Backspace`, `Delete`, or `0` | Clear the selected cell |
+| Arrow keys | Move the selection |
+| `Enter` | Solve or return to editing |
+| `Escape` | Deselect the current cell |
+| `Ctrl+Z` or `Cmd+Z` | Undo |
+
+## Photo scanning and privacy
+
+Photo scanning is optional. The browser crops and normalizes the selected
+image, then sends it to `POST /api/scan`. The server forwards the image to the
+configured Gemini model and returns a validated 9-by-9 grid. The Gemini API key
+remains on the server.
+
+Manual puzzle entry and solving stay entirely in the browser. Images are sent
+to the application server and Google only when the user chooses to scan one.
+Review Google's data handling terms before enabling this feature in a public
+deployment.
+
+The scan endpoint currently enforces an 8 MB upload limit and a 30-second
+upstream timeout. Public deployments should also add rate limiting and any
+authentication or usage controls appropriate for their audience.
+
+## How the solver works
+
+The solver uses recursive backtracking with two optimizations:
+
+- Candidate bitmasks track the digits already used in every row, column, and
+  box.
+- Most-constrained-cell ordering fills the empty cell with the fewest legal
+  candidates first.
+
+This keeps difficult puzzles practical without changing the underlying Sudoku
+rules. The solver does not mutate its input and returns a typed result:
+
+| Status | Meaning |
+| --- | --- |
+| `solved` | A solution was found, with uniqueness and step-count metadata |
+| `invalid` | The given digits already conflict |
+| `unsolvable` | The givens are valid, but no completion exists |
+| `exhausted` | The solver reached its search budget |
+
+## Project structure
+
+```text
+src/
+  app/
+    api/scan/        Server-side image-to-grid endpoint
+    globals.css      Theme and global styles
+    layout.tsx       App metadata and root layout
+    page.tsx         Application entry point
+  components/        Board, controls, cropper, status, and navigation UI
+  hooks/
+    useScan.ts       Scan request lifecycle
+    useSudoku.ts     Board reducer, history, messages, and solve state
+  lib/
+    __tests__/       Solver, validation, grid, and scan parser tests
+    grid.ts          Grid creation, parsing, and counting helpers
+    image.ts         Client-side image normalization
+    puzzles.ts       Built-in sample puzzles
+    scan.ts          Scan schema, prompts, errors, and response parsing
+    solver.ts        Backtracking solver
+    validation.ts    Row, column, and box conflict detection
+scripts/
+  scan-eval.mjs      Live scan accuracy evaluator
+```
+
+The code under `src/lib` is independent of React, which keeps the domain logic
+straightforward to test, benchmark, and reuse.
+
+## Available scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start the development server |
+| `npm run build` | Create a production build |
+| `npm start` | Serve the production build |
+| `npm run lint` | Run ESLint |
+| `npm run typecheck` | Run TypeScript without emitting files |
+| `npm test` | Run the Vitest suite once |
+| `npm run test:watch` | Run Vitest in watch mode |
+
+## Testing
+
+Run the complete local verification suite:
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+The automated tests cover the solver, conflict validation, grid helpers, scan
+response parsing, randomized puzzles, and the difficult built-in sample.
+
+Model accuracy depends on the live scan service and image quality, so it is
+evaluated separately:
+
+```bash
+node --env-file=.env.local scripts/scan-eval.mjs grid.png <81-character-grid> 3
+```
+
+Use `0` for blank cells in the expected 81-character grid. The last argument is
+the number of scan attempts.
+
+## Test on another device
+
+To open the development server from a phone or tablet on the same network:
 
 ```bash
 npm run dev -- -H 0.0.0.0
 ```
 
-The LAN address also has to be listed in `allowedDevOrigins` in
-`next.config.ts`. Next blocks cross-origin requests to `/_next` dev assets, and
-without that entry the phone gets server-rendered HTML that never hydrates: the
-page looks completely normal and nothing responds to taps.
+Add the development machine's LAN address to `allowedDevOrigins` in
+`next.config.ts`. Next.js otherwise blocks cross-origin requests for its
+development assets, leaving the page visible but not interactive.
 
-## If your changes do not show up
+## Troubleshooting stale local builds
 
-`localhost:3000` is a shared origin across every project on this machine. A PWA
-served on that port earlier leaves a **service worker registered against the
-origin**, and it keeps answering requests from its own cache long after that
-project is gone. The symptom is nasty: the dev server logs a fresh response, the
-browser runs an old bundle, React reports a hydration mismatch, and edits appear
-to do nothing no matter how many times you delete `.next` or rebuild.
+Another app previously served from `localhost:3000` may have registered a
+service worker that still returns cached assets. Common symptoms include stale
+UI, hydration warnings, or repeated requests to `/sw.js`.
 
-Tell-tale sign: repeated `GET /sw.js` in the dev server log for a project that
-has no service worker.
+`public/sw.js` is a cleanup worker that removes old caches, unregisters itself,
+and reloads open tabs. To clear the origin manually, open the browser developer
+tools, go to **Application**, then **Storage**, and choose **Clear site data**.
 
-`public/sw.js` is a kill switch for exactly this. It deletes every cache,
-unregisters itself and reloads open tabs. To force it immediately, open DevTools
-→ Application → Storage → **Clear site data**.
+Also avoid running `next build` while `next dev` is active because both
+processes write to `.next`.
 
-Unrelated but same symptom: do not run `next build` while `next dev` is running.
-Both write to `.next/` and the dev cache ends up serving stale chunks.
+## Contributing
 
-## How it works
-
-```
-src/
-  lib/            pure domain logic, no React
-    solver.ts       backtracking search
-    validation.ts   row / column / box conflict detection
-    grid.ts         board construction, parsing, counting
-    puzzles.ts      sample puzzles
-    scan.ts         scan prompt, schema and response parsing
-    image.ts        client-side image normalisation
-    types.ts        Grid, CellValue, SolveResult
-    __tests__/      vitest suites for the above
-  hooks/
-    useSudoku.ts    reducer holding the whole board state
-  app/api/scan/     photo -> grid, server side so the API key stays there
-  components/
-    Board.tsx       9x9 layout and focus management
-    Cell.tsx        one square, memoised
-    NumberPad.tsx   touch entry
-    Controls.tsx    solve / undo / reset
-    ...
-```
-
-Everything under `lib/` is pure and has no import from React, so the solver can
-be tested, benchmarked or reused on its own.
-
-### The solver
-
-Same shape as the original: walk the board, try a digit, recurse, undo on
-failure. Two things changed, both to stop it hanging the tab:
-
-- **Bitmask candidates.** Each row, column and box carries a 9-bit mask of the
-  digits it already holds, so checking a placement is one AND instead of 27
-  array reads.
-- **Fewest candidates first.** The original always filled the first empty cell
-  in row-major order. That is the ordering pathological puzzles are built to
-  defeat - the classic
-  `000000010400000000020000000000050407008000300001090000300400200050100000000806000`
-  takes a naive solver billions of steps. Picking the most constrained cell
-  instead solves it in a few thousand. It ships as the **Evil** sample and the
-  test suite asserts the step count stays under 200k.
-
-`solveSudoku` returns a discriminated union rather than a boolean, so the UI can
-tell apart:
-
-| Status       | Meaning                                        |
-| ------------ | ---------------------------------------------- |
-| `solved`     | Filled in, with a `unique` flag and step count  |
-| `invalid`    | The givens already break a rule, plus the cells |
-| `unsolvable` | Legal input, but no completion exists           |
-| `exhausted`  | Search budget spent (unreachable in practice)   |
-
-It never mutates the grid it is handed.
-
-### Photo scanning
-
-`POST /api/scan` takes an image and returns the 81 cells. The browser never sees
-the API key. The client normalises the image, the route calls Gemini
-(`gemini-3.5-flash-lite`) with a constrained JSON schema, and the parsed grid
-loads onto the board as editable givens for the user to check before solving.
-
-Two findings from `scripts/scan-eval.mjs` drive the whole design, and both are
-easy to undo by accident:
-
-**Ask for a fixed 9x9 integer matrix, and nothing else.** Requesting nine
-9-character strings, or a list of `{row, col, digit}` coordinates, both produced
-consistent column-shift errors: the model miscounts a run of blanks and slides
-the rest of the row over. A matrix with `minItems`/`maxItems` of 9 at both levels
-gives structured decoding one slot per cell and took the same image from 0/3 to
-3/3 exact. Adding a single extra `unreadable` field to that schema dropped it
-back to 1/3, so misreads are caught by the board's own duplicate detection
-instead, which is free and needs no cooperation from the model.
-
-**Feed it enough pixels.** The same grid scored 0/3 at 580px and 3/3 at 1256px.
-Bicubically enlarging the 580px original to 1400px also scored 3/3, so the model
-needs pixels to resolve cell boundaries whether or not they carry new detail.
-`normaliseImage` therefore scales small uploads *up* as well as large ones down.
-
-A scan takes about 5 seconds. Failures are typed (`no-grid`, `unreadable`,
-`too-large`, `not-configured`, `upstream`) so each one gets a message that says
-what to do next.
-
-### State
-
-One `useReducer` in `useSudoku` owns the board, the origin of every cell
-(user-entered vs solver-filled), the undo stack and the current message.
-Conflicts and digit counts are derived with `useMemo` keyed on the board, so
-moving the selection does not recompute them.
-
-Writing a cell copies only the row it touched, and `Cell` is memoised on
-primitive props with stable callbacks, so a keystroke re-renders the few cells
-whose highlight actually changed rather than all 81.
-
-## Differences from the original
-
-- Invalid entries are accepted and highlighted in place instead of being
-  rejected by a blocking `alert()`. You can see both halves of a clash, and
-  Solve explains what is wrong rather than silently refusing.
-- The board is a grid of buttons, not 81 text inputs. Digits come from the
-  keyboard or the on-screen pad, which is what makes it workable on a phone.
-- Added: photo scanning, sample puzzles, undo, digit counts, uniqueness
-  detection, solve timing, and a staggered reveal animation.
-- The original carried unused `tesseract.js` and `opencv.js` dependencies, an
-  abandoned run at reading grids from images. `/api/scan` is that idea finished.
-
-## Testing
-
-```bash
-npm test
-```
-
-81 tests over the solver, the validators, the grid helpers and the scan parser,
-including a 200-puzzle randomised sweep and a pass that removes each of the 81
-cells from a completed board in turn.
-
-The scan's *accuracy* is not unit-testable, since it depends on a live model.
-`scripts/scan-eval.mjs` covers that instead:
-
-```bash
-node --env-file=.env.local scripts/scan-eval.mjs grid.png <81-char expected> 3
-```
+Bug reports and focused pull requests are welcome. Before opening a pull
+request, run the lint, typecheck, test, and build commands listed above.
